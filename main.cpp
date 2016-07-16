@@ -8,14 +8,19 @@
 
 HANDLE wHnd;    // Handle to write to the console.
 HANDLE rHnd;    // Handle to read from the console.
+int HEIGHT = 80;
+int WIDTH = 50;
+int CONT_AVANZA = 250000;
 
 using namespace std;
 
 int main(int argc, char *argv[])
 {
     Puyo p;
+    int pos = 24;
+    int avanza = 0;
     
-    cout << "Hola: " << p.Pos() << "\n";
+    //cout << "Hola: " << p.Pos() << "\n";
     
      // Set up the handles for reading/writing:
     wHnd = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -31,28 +36,24 @@ int main(int argc, char *argv[])
     SetConsoleWindowInfo(wHnd, TRUE, &windowSize);
 
     // Create a COORD to hold the buffer size:
-    COORD bufferSize = {80, 50};
+    COORD bufferSize = {HEIGHT, WIDTH};
 
     // Change the internal buffer size:
     SetConsoleScreenBufferSize(wHnd, bufferSize);
 
     // Set up the character buffer:
-    CHAR_INFO consoleBuffer[80 * 50];
+    CHAR_INFO consoleBuffer[HEIGHT * WIDTH];
 
     // Clear the CHAR_INFO buffer:
-    for (int i=0; i < 80 * 50; ++i) {
+    for (int i=0; i < HEIGHT * WIDTH; ++i) {
 
         // Fill it with white-backgrounded spaces
         consoleBuffer[i].Char.AsciiChar = ' ';
-        consoleBuffer[i].Attributes = 
-            BACKGROUND_BLUE |
-            BACKGROUND_GREEN |
-            BACKGROUND_RED |
-            BACKGROUND_INTENSITY;
+        consoleBuffer[i].Attributes = 0;
     }
 
     // Set up the positions:
-    COORD charBufSize = {80,50};
+    COORD charBufSize = {HEIGHT,WIDTH};
     COORD characterPos = {0,0};
     SMALL_RECT writeArea = {0,0,79,49}; 
 
@@ -67,13 +68,16 @@ int main(int argc, char *argv[])
 
     // Boolean flag to state whether app is running or not.
     bool appIsRunning = true;
-
     // If we set appIsRunning to false, the program will end!
     while (appIsRunning) {
-
+          
+             
+         
+          
+         
         // Find out how many console events have happened:
         GetNumberOfConsoleInputEvents(rHnd, &numEvents);
-
+        
         // If it's not zero (something happened...)
         if (numEvents != 0) {
 
@@ -85,71 +89,76 @@ int main(int argc, char *argv[])
             ReadConsoleInput(rHnd, eventBuffer, numEvents, &numEventsRead);
 
             // Now, cycle through all the events that have happened:
-            for (DWORD i = 0; i < numEventsRead; ++i) {
-
+            //for (DWORD i = 0; i < numEventsRead; ++i) {
+                
+                
                 // Check the event type: was it a key?
-                if (eventBuffer[i].EventType == KEY_EVENT) {
+                if (eventBuffer[0].EventType == KEY_EVENT) {
 
                     // Yes! Was the key code the escape key?
-                    if (eventBuffer[i].Event.KeyEvent.wVirtualKeyCode==VK_ESCAPE) {
+                    if (eventBuffer[0].Event.KeyEvent.wVirtualKeyCode==VK_ESCAPE) {
 
                         // Yes, it was, so set the appIsRunning to false.
                         appIsRunning = false;
 
                     // Was if the 'c' key?
-                    } else if (eventBuffer[i].Event.KeyEvent.uChar.AsciiChar=='c') {
+                    } else if (eventBuffer[0].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) {
 
                         // Yes, so clear the buffer to spaces:
-                        for (int i = 0; i < 80 * 50; ++i) {
-                            consoleBuffer[i].Char.AsciiChar = ' ';
+                        consoleBuffer[p.Pos()].Char.AsciiChar = ' ';
+                        consoleBuffer[p.Pos()].Attributes = 0;
+                        p.Right();
+                        consoleBuffer[p.Pos()].Char.AsciiChar = p.Figure();
+                        consoleBuffer[p.Pos()].Attributes = BACKGROUND_GREEN;  
+                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
+                        } else if (eventBuffer[0].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) {
+
+                        // Yes, so clear the buffer to spaces:
+                        consoleBuffer[p.Pos()].Char.AsciiChar = ' ';
+                        consoleBuffer[p.Pos()].Attributes = 0;
+                        p.Left();
+                        consoleBuffer[p.Pos()].Char.AsciiChar = p.Figure();
+                        consoleBuffer[p.Pos()].Attributes = BACKGROUND_GREEN;  
+                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
+                        } else if (eventBuffer[0].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) {
+
+                        // Yes, so clear the buffer to spaces:
+                        consoleBuffer[p.Pos()].Char.AsciiChar = ' ';
+                        consoleBuffer[p.Pos()].Attributes = 0;
+                        p.Down();
+                        consoleBuffer[p.Pos()].Char.AsciiChar = p.Figure();
+                        consoleBuffer[p.Pos()].Attributes = BACKGROUND_GREEN;  
+                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
                         }
                         
-                        // Redraw our buffer:
-                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
-
-                    }
-                
-                } else if (eventBuffer[i].EventType == MOUSE_EVENT) {
-                    
-                    // Set the index to our buffer of CHAR_INFO
-                    int offsetPos =
-                        eventBuffer[i].Event.MouseEvent.dwMousePosition.X 
-                        + 80 * eventBuffer[i].Event.MouseEvent.dwMousePosition.Y;
-
-                    // Is it a left click?
-                    if (eventBuffer[i].Event.MouseEvent.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) {
-
-                        // Yep, so set with character 0xDB (solid block)
-                        consoleBuffer[offsetPos].Char.AsciiChar = (char)0xDB;
-
-                        // Redraw our buffer:
-                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
-
-                    // Is it a right click?
-                    } else if (eventBuffer[i].Event.MouseEvent.dwButtonState & RIGHTMOST_BUTTON_PRESSED) {
-
-                        // Yep, so set with character 0xB1 (50% block)
-                        consoleBuffer[offsetPos].Char.AsciiChar = (char)0xB1;
-
-                        // Redraw our buffer:
-                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
-
-                    // Is it a middle click?
-                    } else if (eventBuffer[i].Event.MouseEvent.dwButtonState & FROM_LEFT_2ND_BUTTON_PRESSED) {
-
-                        // Yep, so set with character space.
-                        consoleBuffer[offsetPos].Char.AsciiChar = ' ';
-
-                        // Redraw our buffer:
-                        WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);                        
-                    }
+                                    
                 }
-            }
+                
+            //}
 
             // Clean up our event buffer:
             delete[] eventBuffer;
         }
+        
+        avanza++;
+        if(avanza == CONT_AVANZA)
+        {
+            p.Avanza();
+            consoleBuffer[p.Pos() - HEIGHT].Char.AsciiChar = ' ';
+            consoleBuffer[p.Pos() - HEIGHT].Attributes = 0; 
+            consoleBuffer[p.Pos()].Char.AsciiChar = p.Figure();
+            consoleBuffer[p.Pos()].Attributes = BACKGROUND_GREEN;  
+            
+            WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
+        }
+           
+        if(avanza >= CONT_AVANZA)
+           avanza = 0;
+        
+        
+        
     }
+    //system("pause");
     
     
     
