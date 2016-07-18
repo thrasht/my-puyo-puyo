@@ -9,23 +9,39 @@
 #include <Windows.h>
 #include <Tchar.h>
 #include "Puyo.h"
+#include <ctime>
+
 
 HANDLE wHnd;    // Handle to write to the console.
 HANDLE rHnd;    // Handle to read from the console.
+
 int HEIGHT = 15;
 int WIDTH = 20;
-int CONT_AVANZA = 250000;
+
+int LEFT = -1;
+int RIGHT = 1;
+int UP = -HEIGHT;
+int DOWN = HEIGHT;
+int TAM_ARR_VISITED = 100;
 
 using namespace std;
 
 void muevePuyo(INPUT_RECORD, CHAR_INFO *, Puyo *, bool *);
-void avanzaPuyo(Puyo *, int *, CHAR_INFO *, COORD, COORD, SMALL_RECT *);
+void avanzaPuyo(Puyo *, CHAR_INFO *, COORD, COORD, SMALL_RECT *);
+int buscaRensa(Puyo *, int, int, CHAR_INFO *, int *);
+void destroyRensa(Puyo *, int, int, CHAR_INFO *, int *);
+void visitPosition(int, int *);
+bool positionIsNotVisited(int, int *);
+void initializingDirVisited(int *);
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-    int avanza = 0;
 	int cont = 0;
-    
+	
+	std::clock_t start;
+	double duration;
+
+	int *dirVisited = (int*)malloc(sizeof(int) * TAM_ARR_VISITED);
     
      // Set up the handles for reading/writing:
     wHnd = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -74,12 +90,16 @@ int _tmain(int argc, _TCHAR* argv[])
     // Boolean flag to state whether app is running or not.
     bool appIsRunning = true;
     // If we set appIsRunning to false, the program will end!
+	
+	//Initializing the clock
+	start = std::clock();	
     while (appIsRunning) 
 	{
         Puyo* p = new Puyo();
 		
 		while (p->Check() == true)
 		{
+
 			// Find out how many console events have happened:
 			GetNumberOfConsoleInputEvents(rHnd, &numEvents);
 	        
@@ -106,9 +126,23 @@ int _tmain(int argc, _TCHAR* argv[])
 				// Clean up our event buffer:
 				delete[] eventBuffer;
 			}
-			
-	        avanzaPuyo(p, &avanza, consoleBuffer, charBufSize, characterPos, &writeArea);
+
+			duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+			if(duration > 0.5)
+			{
+				avanzaPuyo(p, consoleBuffer, charBufSize, characterPos, &writeArea);
+				start = std::clock();
+			}
 		}
+
+		initializingDirVisited(dirVisited);
+		cont = buscaRensa(p, p->Pos(), 0, consoleBuffer, dirVisited);
+		if(cont >= 4)
+		{
+			initializingDirVisited(dirVisited);
+			destroyRensa(p, p->Pos(), 0, consoleBuffer, dirVisited);
+		}
+		//std::cout << cont;
         
 	}
 
@@ -177,13 +211,12 @@ void muevePuyo(INPUT_RECORD eventBuffer, CHAR_INFO *consoleBuffer, Puyo *p, bool
 
 }
 
-void avanzaPuyo(Puyo *p, int *avanza, CHAR_INFO *consoleBuffer, COORD charBufSize, COORD characterPos, SMALL_RECT *writeArea)
+void avanzaPuyo(Puyo *p, CHAR_INFO *consoleBuffer, COORD charBufSize, COORD characterPos, SMALL_RECT *writeArea)
 {
 	if(p->Pos() + HEIGHT > HEIGHT * WIDTH || consoleBuffer[p->Pos() + HEIGHT].Char.AsciiChar != ' ' )
 		p->ChangeState(false);
 
-	*avanza = *avanza + 1;
-	if(*avanza == CONT_AVANZA && p->Check() == true)
+	if(p->Check() == true)
 	{
 		p->Avanza();
 		consoleBuffer[p->Pos() - HEIGHT].Char.AsciiChar = ' ';
@@ -195,8 +228,113 @@ void avanzaPuyo(Puyo *p, int *avanza, CHAR_INFO *consoleBuffer, COORD charBufSiz
 		if(p->Pos() + HEIGHT > HEIGHT * WIDTH || consoleBuffer[p->Pos() + HEIGHT].Char.AsciiChar != ' ' )
 			p->ChangeState(false);
 	}
-   
-	if(*avanza >= CONT_AVANZA)
-	   *avanza = 0;
 
+}
+
+int buscaRensa(Puyo *p, int pos, int origin, CHAR_INFO *charBuffer, int *dirVisited)
+{
+	int res = 0;
+
+	visitPosition(pos, dirVisited);
+
+	if(charBuffer[pos].Char.AsciiChar == p->Figure())
+		res = 1;
+
+	if(res == 1)
+	{
+		//Search to the Right side
+		if(positionIsNotVisited(pos + RIGHT, dirVisited))
+			res += buscaRensa(p, pos + RIGHT, LEFT, charBuffer, dirVisited);
+
+		//Search to the Left side
+		if(positionIsNotVisited(pos + LEFT, dirVisited))
+			res += buscaRensa(p, pos + LEFT, RIGHT, charBuffer, dirVisited);
+		
+		//Search to the Upper side
+		if(positionIsNotVisited(pos + UP, dirVisited))
+			res += buscaRensa(p, pos + UP, DOWN, charBuffer, dirVisited);
+
+		//Search to the Down side
+		if(positionIsNotVisited(pos + DOWN, dirVisited))
+			res += buscaRensa(p, pos + DOWN, UP, charBuffer, dirVisited);
+
+	}
+
+	return res;
+
+}
+
+void initializingDirVisited(int *visitedPositions)
+{
+	int i = 0;
+
+	for(i = 0; i < TAM_ARR_VISITED; i++)
+		visitedPositions[i] = -1;
+
+}
+
+void visitPosition(int pos, int *visitedPositions)
+{
+	int i = 0;
+
+	for(i = 0; i < TAM_ARR_VISITED; i++)
+	{
+		if(visitedPositions[i] == -1)
+		{
+			visitedPositions[i] = pos;
+			break;
+		}
+	}
+}
+
+bool positionIsNotVisited(int pos, int *visitedPositions)
+{
+	int i = 0;
+	bool notVisited = true;
+
+	for(i = 0; i < TAM_ARR_VISITED && visitedPositions[i] != -1; i++)
+	{
+		if(visitedPositions[i] == pos)
+		{
+			notVisited = false;
+			break;
+		}
+
+	}
+
+	return notVisited;
+}
+
+void destroyRensa(Puyo *p, int pos, int origin, CHAR_INFO *charBuffer, int *dirVisited)
+{
+	int res = 0;
+
+	visitPosition(pos, dirVisited);
+
+	if(charBuffer[pos].Char.AsciiChar == p->Figure())
+	{
+		res = 1;
+		charBuffer[pos].Char.AsciiChar = ' ';
+		charBuffer[pos].Attributes = 0;
+	}
+
+	if(res == 1)
+	{
+		//Search to the Right side
+		if(positionIsNotVisited(pos + RIGHT, dirVisited))
+			destroyRensa(p, pos + RIGHT, LEFT, charBuffer, dirVisited);
+
+		//Search to the Left side
+		if(positionIsNotVisited(pos + LEFT, dirVisited))
+			destroyRensa(p, pos + LEFT, RIGHT, charBuffer, dirVisited);
+		
+		//Search to the Upper side
+		if(positionIsNotVisited(pos + UP, dirVisited))
+			destroyRensa(p, pos + UP, DOWN, charBuffer, dirVisited);
+
+		//Search to the Down side
+		if(positionIsNotVisited(pos + DOWN, dirVisited))
+			destroyRensa(p, pos + DOWN, UP, charBuffer, dirVisited);
+
+	}
 }
