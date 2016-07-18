@@ -28,11 +28,12 @@ using namespace std;
 
 void muevePuyo(INPUT_RECORD, CHAR_INFO *, Puyo *, bool *);
 void avanzaPuyo(Puyo *, CHAR_INFO *, COORD, COORD, SMALL_RECT *);
-int buscaRensa(Puyo *, int, int, CHAR_INFO *, int *);
-void destroyRensa(Puyo *, int, int, CHAR_INFO *, int *);
+int searchOrDestroyRensa(Puyo *, int, int, CHAR_INFO *, int *, bool);
+bool searchAndDestroyRensaChain(Puyo *, int, int, CHAR_INFO *, int *);
 void visitPosition(int, int *);
 bool positionIsNotVisited(int, int *);
 void initializingDirVisited(int *);
+void fillSpaces(CHAR_INFO *);
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -127,7 +128,7 @@ int _tmain(int argc, _TCHAR* argv[])
 				delete[] eventBuffer;
 			}
 
-			duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			if(duration > 0.5)
 			{
 				avanzaPuyo(p, consoleBuffer, charBufSize, characterPos, &writeArea);
@@ -136,13 +137,24 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
 
 		initializingDirVisited(dirVisited);
-		cont = buscaRensa(p, p->Pos(), 0, consoleBuffer, dirVisited);
+		cont = searchOrDestroyRensa(p, p->Pos(), 0, consoleBuffer, dirVisited, false);
 		if(cont >= 4)
 		{
 			initializingDirVisited(dirVisited);
-			destroyRensa(p, p->Pos(), 0, consoleBuffer, dirVisited);
+			searchOrDestroyRensa(p, p->Pos(), 0, consoleBuffer, dirVisited, true);
+			
+						
+
+			do{
+				Sleep(500);
+				WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
+				Sleep(500);
+				fillSpaces(consoleBuffer);
+				WriteConsoleOutputA(wHnd, consoleBuffer, charBufSize, characterPos, &writeArea);
+				Sleep(500);
+			}while(searchAndDestroyRensaChain(p, p->Pos(), 0, consoleBuffer, dirVisited));
+
 		}
-		//std::cout << cont;
         
 	}
 
@@ -157,9 +169,9 @@ void muevePuyo(INPUT_RECORD eventBuffer, CHAR_INFO *consoleBuffer, Puyo *p, bool
 	{
 		case VK_ESCAPE:
 
-		// Yes, it was, so set the appIsRunning to false.
-		appIsRunning = false;
-		break;
+			// Yes, it was, so set the appIsRunning to false.
+			*appIsRunning = false;
+			break;
 
 		case VK_RIGHT:
 			if((p->Pos() + 1) % HEIGHT != 0 && !(consoleBuffer[p->Pos() + 1].Char.AsciiChar != ' '))
@@ -231,32 +243,39 @@ void avanzaPuyo(Puyo *p, CHAR_INFO *consoleBuffer, COORD charBufSize, COORD char
 
 }
 
-int buscaRensa(Puyo *p, int pos, int origin, CHAR_INFO *charBuffer, int *dirVisited)
+int searchOrDestroyRensa(Puyo *p, int pos, int origin, CHAR_INFO *charBuffer, int *dirVisited, bool destroy)
 {
 	int res = 0;
 
 	visitPosition(pos, dirVisited);
 
 	if(charBuffer[pos].Char.AsciiChar == p->Figure())
+	{
 		res = 1;
+		if(destroy == true)
+		{
+			charBuffer[pos].Char.AsciiChar = ' ';
+			charBuffer[pos].Attributes = 0;
+		}
+	}
 
 	if(res == 1)
 	{
 		//Search to the Right side
 		if(positionIsNotVisited(pos + RIGHT, dirVisited))
-			res += buscaRensa(p, pos + RIGHT, LEFT, charBuffer, dirVisited);
+			res += searchOrDestroyRensa(p, pos + RIGHT, LEFT, charBuffer, dirVisited, destroy);
 
 		//Search to the Left side
 		if(positionIsNotVisited(pos + LEFT, dirVisited))
-			res += buscaRensa(p, pos + LEFT, RIGHT, charBuffer, dirVisited);
+			res += searchOrDestroyRensa(p, pos + LEFT, RIGHT, charBuffer, dirVisited, destroy);
 		
 		//Search to the Upper side
 		if(positionIsNotVisited(pos + UP, dirVisited))
-			res += buscaRensa(p, pos + UP, DOWN, charBuffer, dirVisited);
+			res += searchOrDestroyRensa(p, pos + UP, DOWN, charBuffer, dirVisited, destroy);
 
 		//Search to the Down side
 		if(positionIsNotVisited(pos + DOWN, dirVisited))
-			res += buscaRensa(p, pos + DOWN, UP, charBuffer, dirVisited);
+			res += searchOrDestroyRensa(p, pos + DOWN, UP, charBuffer, dirVisited, destroy);
 
 	}
 
@@ -299,42 +318,67 @@ bool positionIsNotVisited(int pos, int *visitedPositions)
 			notVisited = false;
 			break;
 		}
-
 	}
 
 	return notVisited;
 }
 
-void destroyRensa(Puyo *p, int pos, int origin, CHAR_INFO *charBuffer, int *dirVisited)
+void fillSpaces(CHAR_INFO *consoleBuffer)
 {
-	int res = 0;
+	int i, j, k;
 
-	visitPosition(pos, dirVisited);
-
-	if(charBuffer[pos].Char.AsciiChar == p->Figure())
+	for( i = WIDTH * (HEIGHT - 1); i < WIDTH * HEIGHT; i++)
 	{
-		res = 1;
-		charBuffer[pos].Char.AsciiChar = ' ';
-		charBuffer[pos].Attributes = 0;
+		for( j = i; j > 0; j = j - HEIGHT)
+		{
+			if(consoleBuffer[j].Char.AsciiChar == ' ')
+			{
+				for( k = j - HEIGHT; k > 0; k = k - HEIGHT)
+				{
+					if(consoleBuffer[k].Char.AsciiChar != ' ')
+					{
+						consoleBuffer[j].Char.AsciiChar = consoleBuffer[k].Char.AsciiChar;
+						consoleBuffer[j].Attributes = consoleBuffer[k].Attributes;
+
+						consoleBuffer[k].Char.AsciiChar = ' ';
+						consoleBuffer[k].Attributes = 0;
+
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+bool searchAndDestroyRensaChain(Puyo *p, int pos, int origin, CHAR_INFO *charBuffer, int *dirVisited)
+{
+	int i, j, cont = 0;
+	bool res = false;
+
+	for( i = WIDTH * (HEIGHT - 1); i < WIDTH * HEIGHT; i++)
+	{
+		for( j = i; j > 0; j = j - HEIGHT)
+		{
+			if(charBuffer[j].Char.AsciiChar != ' ')
+			{
+				p->EditFigure(charBuffer[j].Char.AsciiChar);
+				p->EditColor(charBuffer[j].Attributes);
+				p->EditPos(j);
+
+				initializingDirVisited(dirVisited);
+				cont = searchOrDestroyRensa(p, p->Pos(), 0, charBuffer, dirVisited, false);
+				if(cont >= 4)
+				{
+					initializingDirVisited(dirVisited);
+					searchOrDestroyRensa(p, p->Pos(), 0, charBuffer, dirVisited, true);
+					Sleep(500);
+					res = true;
+				}
+
+			}
+		}
 	}
 
-	if(res == 1)
-	{
-		//Search to the Right side
-		if(positionIsNotVisited(pos + RIGHT, dirVisited))
-			destroyRensa(p, pos + RIGHT, LEFT, charBuffer, dirVisited);
-
-		//Search to the Left side
-		if(positionIsNotVisited(pos + LEFT, dirVisited))
-			destroyRensa(p, pos + LEFT, RIGHT, charBuffer, dirVisited);
-		
-		//Search to the Upper side
-		if(positionIsNotVisited(pos + UP, dirVisited))
-			destroyRensa(p, pos + UP, DOWN, charBuffer, dirVisited);
-
-		//Search to the Down side
-		if(positionIsNotVisited(pos + DOWN, dirVisited))
-			destroyRensa(p, pos + DOWN, UP, charBuffer, dirVisited);
-
-	}
+	return res;
 }

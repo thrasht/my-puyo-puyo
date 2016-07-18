@@ -132,4 +132,17 @@ int Puyo::Color()
 	return color;
 }
 
+void Puyo::EditFigure(char f)
+{
+	figure = f;
+}
 
+void Puyo::EditColor(int c)
+{
+	color = c;
+}
+
+void Puyo::EditPos(int p)
+{
+	pos = p;
+}

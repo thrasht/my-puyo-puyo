@@ -21,6 +21,9 @@ class Puyo
 		bool Check();
 		bool ChangeState(bool);
 		int Color();
+		void EditFigure(char);
+		void EditColor(int);
+		void EditPos(int);
 
 };
 
