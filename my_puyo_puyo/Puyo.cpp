@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <iomanip>
 
-Puyo::Puyo(void)
+Puyo::Puyo()
 {
 	pos = 7;
 	active = true;
-	figure = ('0' - 46) + (rand() % 6);
+	figure = ('0' - 46) + (rand() % 4);
+	partner = 0;
 
 	switch (figure)
 	{
@@ -26,24 +27,17 @@ Puyo::Puyo(void)
 
 		case 0x05:
 			color = BACKGROUND_BLUE | BACKGROUND_RED;
-			break;
-
-		case 0x06:
-			color = BACKGROUND_RED | BACKGROUND_GREEN;
-			break;
-
-		case 0x07:
-			color = BACKGROUND_BLUE | BACKGROUND_RED | BACKGROUND_GREEN;
 			break;
 	}
 
 }
 
-Puyo::Puyo(bool act)
+Puyo::Puyo(int p)
 {
-	pos = 19;
-	active = act;
-	figure = ('0' - 46) + (rand() % 6);
+	pos = 7 + p;
+	active = true;
+	figure = ('0' - 46) + (rand() % 4);
+	partner = -1;
 
 	switch (figure)
 	{
@@ -61,14 +55,6 @@ Puyo::Puyo(bool act)
 
 		case 0x05:
 			color = BACKGROUND_BLUE | BACKGROUND_RED;
-			break;
-
-		case 0x06:
-			color = BACKGROUND_RED | BACKGROUND_GREEN;
-			break;
-
-		case 0x07:
-			color = BACKGROUND_BLUE | BACKGROUND_RED | BACKGROUND_GREEN;
 			break;
 	}
 
@@ -145,4 +131,14 @@ void Puyo::EditColor(int c)
 void Puyo::EditPos(int p)
 {
 	pos = p;
+}
+
+int Puyo::Partner()
+{
+	return partner;
+}
+
+void Puyo::EditPartner(int p)
+{
+	partner = p;
 }

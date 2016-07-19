@@ -7,10 +7,11 @@ class Puyo
 		int pos;
 		char figure;
 		int color;
+		int partner;
 
 	public:
-		Puyo(void);
-		Puyo(bool);
+		Puyo();
+		Puyo(int);
 		~Puyo(void);
 		int Pos();   
 		int Avanza();   
@@ -24,6 +25,8 @@ class Puyo
 		void EditFigure(char);
 		void EditColor(int);
 		void EditPos(int);
+		int Partner();
+		void EditPartner(int);
 
 };
 
